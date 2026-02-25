@@ -38,21 +38,12 @@ const char file_extensions[4][5] = {
     [PPM] = ".ppm\0",
 };
 
-char *rgb_to_ansi(const ColorMode color_mode, const uint8_t *rgb) {
-  size_t ansi_color_len =
-      snprintf(NULL, 0, "%s%hu;%hu;%hum", ANSI_BACKGROUND_PREFIX, rgb[0],
-               rgb[1], rgb[2]) +
-      1;
-  char *ansi_color = malloc(ansi_color_len);
-  if (ansi_color == NULL) {
-    fprintf(stderr, "Failed to malloc ansi_color in process_export_state "
-                    "function. Aborting.");
-  }
-  snprintf(ansi_color, ansi_color_len, "%s%hu;%hu;%hum",
+void rgb_to_ansi(const ColorMode color_mode, const uint8_t *rgb, char *buf,
+                 const size_t size) {
+  snprintf(buf, size, "%s%hu;%hu;%hum",
            color_mode == BG_MODE ? ANSI_BACKGROUND_PREFIX
                                  : ANSI_FOREGROUND_PREFIX,
            rgb[0], rgb[1], rgb[2]);
-  return ansi_color;
 }
 
 void print_ansi(const char *background_color, const char *foreground_color,
@@ -78,23 +69,25 @@ void print_screen(Screen *scr) {
         continue;
       }
 
+      char bg[24];
+      char fg[24];
       if (scr->curr_tool == BUCKET) {
-        print_ansi(rgb_to_ansi(BG_MODE, color_palette[cell]),
-                   rgb_to_ansi(FG_MODE, color_palette[scr->curr_color]),
-                   CURSOR_PIXEL, E_NONE);
+        rgb_to_ansi(BG_MODE, color_palette[cell], bg, sizeof bg);
+        rgb_to_ansi(FG_MODE, color_palette[scr->curr_color], fg, sizeof fg);
+        print_ansi(bg, fg, CURSOR_PIXEL, E_NONE);
         continue;
       }
 
       bool is_cursor_here =
           row == scr->cursor_xy[1] && col == scr->cursor_xy[0];
       if (is_cursor_here && !scr->is_cursor_hidden) {
-        print_ansi(rgb_to_ansi(BG_MODE, color_palette[cell]),
-                   rgb_to_ansi(FG_MODE, color_palette[scr->curr_color]),
-                   CURSOR_PIXEL, E_NONE);
+        rgb_to_ansi(BG_MODE, color_palette[cell], bg, sizeof bg);
+        rgb_to_ansi(FG_MODE, color_palette[scr->curr_color], fg, sizeof fg);
+        print_ansi(bg, fg, CURSOR_PIXEL, E_NONE);
       } else {
-        print_ansi(rgb_to_ansi(BG_MODE, color_palette[cell]),
-                   rgb_to_ansi(FG_MODE, color_palette[cell]), FULL_PIXEL,
-                   E_NONE);
+        rgb_to_ansi(BG_MODE, color_palette[cell], bg, sizeof bg);
+        rgb_to_ansi(FG_MODE, color_palette[cell], fg, sizeof fg);
+        print_ansi(bg, fg, FULL_PIXEL, E_NONE);
       }
     }
     printf("\n");
@@ -113,25 +106,25 @@ void print_screen(Screen *scr) {
   for (uint8_t i = 0; i < COLOR_COUNT; i++) {
     char color_letter[2];
     color_letter[0] = color_names[i][0];
+    color_letter[1] = '\0';
+    char cursor_color_fg[24];
+    rgb_to_ansi(FG_MODE, color_palette[i], cursor_color_fg,
+                sizeof cursor_color_fg);
     if (i != scr->curr_color) {
-      print_ansi(RESET, rgb_to_ansi(FG_MODE, color_palette[i]), color_letter,
-                 E_NONE);
+      print_ansi(RESET, cursor_color_fg, color_letter, E_NONE);
     } else {
-      // Any argument that isn't use may also be used to define a second style.
-      print_ansi(BOLD, rgb_to_ansi(FG_MODE, color_palette[i]), color_letter,
-                 E_UNDERLINE);
+      // Any argument that isn't used may also be used to define a second style.
+      print_ansi(BOLD, cursor_color_fg, color_letter, E_UNDERLINE);
     }
   }
   printf(")\n");
 
-  // Empty Line for controls info.
-  printf("\n");
   /*
   `e` export     `c` cancel       `u` use tool     `p` pencil    `b` bucket
   `n` next color `N` prev color   `1-9` pick color `;` next tool `i` hide cursor
   `hjkl` l/d/u/r `m,./` go to l/d/u/r edge
   */
-  printf("`e` export     `c` cancel       `u` use tool     `p` pencil    `b` "
+  printf("\n`e` export     `c` cancel       `u` use tool     `p` pencil    `b` "
          "bucket\n");
   printf("`n` next color `N` prev color   `1-9` pick color `;` next tool `i` "
          "hide cursor\n");
@@ -191,8 +184,7 @@ bool export_file(ExportFileInfo *file_info, Screen *scr) {
   system(command_str);
   fclose(file);
   command_size = snprintf(NULL, 0, "rm %s", file_info->name) + 1;
-  command_str =
-      realloc(command_str, command_size);
+  command_str = realloc(command_str, command_size);
   snprintf(command_str, command_size, "rm %s", file_info->name);
   system(command_str);
   free(command_str);
@@ -234,7 +226,7 @@ void process_export_state(Screen *scr) {
     print_screen(scr);
 
     // Logs
-    printf("Exporting file (Press `c` to cancel):\n");
+    printf("Exporting file (Press `/` to cancel):\n");
     printf("Select format:\n");
     printf("1. PNG\n");
     printf("2. JPG\n");
@@ -255,7 +247,7 @@ void process_export_state(Screen *scr) {
     }
 
     keypress = getchar();
-    if (keypress == 'c' && state != NAMING_FILE)
+    if (keypress == '/')
       goto process_export_state_end;
 
     if (state == SELECTING_FORMAT) {
@@ -370,6 +362,11 @@ int main() {
     }
   }
   scr.curr_color = E_BLACK;
+  scr.curr_tool = PENCIL;
+  scr.cursor_xy[0] = 0;
+  scr.cursor_xy[1] = 0;
+  scr.is_cursor_hidden = false;
+  scr.export_log = "";
 
   while (true) {
     clear_screen();
