@@ -1,6 +1,6 @@
 # Mini Paint TUI
 
-A very small TUI that lets you create small 32x32 images.
+A very small TUI that lets you create 32x32 px images (scalable by n factor).
 
 ## UI
 
@@ -57,7 +57,7 @@ Cancel? y/n >             // command line (pops up on export & discard commands)
 
 Features of this TUI:
 
-1. Can initiate, with a UI that shows the:
+1. Initiates with a UI that shows the:
    - canvas (32x32 px),
    - currently selected tool,
    - currently selected color,
@@ -73,13 +73,11 @@ Features of this TUI:
 6. The cursor may be hidden, or may be visible, marked by textured pixels.
 7. Each pixel is 1-char in height and 2-chars in width.
 
-Things it may be able to do in the future:
+Limitations:
 
-1. Save and load file in progress
-2. Open files with screen sizes other than 32x32
-3. Have arbitrary colors (probably 24-bit)
-4. Move entire image in any direction in the canvas (adjusting the image's
-   position in the canvas)
+1. Cannot save nor load files in progress
+2. Cannot create files with screen sizes other than 32x32
+3. Cannot use arbitrary colors
 
 ---
 
