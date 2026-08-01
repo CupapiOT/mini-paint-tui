@@ -38,6 +38,7 @@ different colors and two tools.
 
 - `C` language (C99)
 - `termios` built-in library.
+- `ffmpeg` CLI tool (used for exporting files into non-PPM formats).
 
 ---
 
