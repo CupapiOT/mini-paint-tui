@@ -1,3 +1,11 @@
 *.out
 *.exe
 test*
+.gdb_history
+
+# Images
+
+*.ppm
+*.png
+*.jpg
+*.ico

@@ -14,6 +14,6 @@ ${OUT}: ${IN} ${CODES} ${CFG}
 	${CC} ${FLAGS} -o ${OUT} ${IN}
 
 clean:
-	rm *.exe *.out *.o *.ppm *.jpg *.png *.ico
+	rm -f *.exe *.out *.o *.ppm *.jpg *.png *.ico
 
-.PHONY: run build
+.PHONY: run build clean

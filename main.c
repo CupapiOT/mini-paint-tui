@@ -32,10 +32,10 @@ const char *color_names[COLOR_COUNT] = {
     [E_CYAN] = "Cyan",     [E_BLUE] = "Blue",     [E_MAGENTA] = "Magenta",
     [E_BROWN] = "Brown"};
 const char file_extensions[4][5] = {
-    [PNG] = ".png\0",
-    [JPG] = ".jpg\0",
-    [ICO] = ".ico\0",
-    [PPM] = ".ppm\0",
+    [PNG] = ".png",
+    [JPG] = ".jpg",
+    [ICO] = ".ico",
+    [PPM] = ".ppm",
 };
 
 void rgb_to_ansi(const ColorMode color_mode, const uint8_t *rgb, char *buf,
@@ -95,14 +95,11 @@ void print_screen(Screen *scr) {
 
   // Status line
   //   Cursor
-  printf("(%02hu, %02hu)", scr->cursor_xy[0] + 1, scr->cursor_xy[1] + 1);
-  printf(" | ");
+  printf("(%02hu, %02hu) | ", scr->cursor_xy[0] + 1, scr->cursor_xy[1] + 1);
   //   Selected tool
-  printf("Tool: %s", scr->curr_tool == 0 ? "Pencil" : "Bucket");
-  printf(" | ");
+  printf("Tool: %s | ", scr->curr_tool == 0 ? "Pencil" : "Bucket");
   //   Selected color
-  printf("Color: %-7s", color_names[scr->curr_color]);
-  printf(" (");
+  printf("Color: %-7s (", color_names[scr->curr_color]);
   for (uint8_t i = 0; i < COLOR_COUNT; i++) {
     char color_letter[2];
     color_letter[0] = color_names[i][0];
@@ -124,13 +121,15 @@ void print_screen(Screen *scr) {
   `n` next color `N` prev color   `1-9` pick color `;` next tool `i` hide cursor
   `hjkl` l/d/u/r `m,./` go to l/d/u/r edge
   */
-  printf("\n`e` export     `c` cancel       `u` use tool     `p` pencil    `b` "
-         "bucket\n");
-  printf("`n` next color `N` prev color   `1-9` pick color `;` next tool `i` "
-         "hide cursor\n");
-  printf("`hjkl` l/d/u/r `m,./` go to l/d/u/r edge\n\n");
+  printf("\n"
+         "`e` export     `c` cancel       `u` use tool     `p` pencil    `b` "
+         "bucket\n"
+         "`n` next color `N` prev color   `1-9` pick color `;` next tool `i` "
+         "hide cursor\n"
+         "`hjkl / aswd` l/d/u/r `m,./` go to l/d/u/r edge\n"
+         "\n");
 
-  if (scr->export_log != NULL)
+  if (strcmp(scr->export_log, "") != 0)
     printf("Last Export Log: %s\n\n", scr->export_log);
 }
 
@@ -181,6 +180,7 @@ bool export_file(ExportFileInfo *file_info, Screen *scr) {
   }
   snprintf(command_str, command_size, "ffmpeg -i %s %s%s", file_info->name,
            file_info->name, file_info->extension);
+  // TODO: Detect errors given by ffmpeg
   system(command_str);
   fclose(file);
   command_size = snprintf(NULL, 0, "rm %s", file_info->name) + 1;
@@ -191,7 +191,7 @@ bool export_file(ExportFileInfo *file_info, Screen *scr) {
   return true;
 }
 
-void process_export_state(Screen *scr) {
+void process_exanythingport_state(Screen *scr) {
   typedef enum {
     SELECTING_FORMAT,
     NAMING_FILE,
@@ -217,6 +217,8 @@ void process_export_state(Screen *scr) {
   file_info->image_scale = 1;
 
   const uint8_t max_scale_digits = 5;
+  // TODO: Fix this breaking ffmpeg when user only presses enter without
+  // changing the size.
   char image_scale_str[] = {'1', 0, 0, 0, 0};
   uint8_t image_scale_str_index = 1;
   char keypress;
@@ -239,9 +241,9 @@ void process_export_state(Screen *scr) {
     }
     if (state == SPECIFY_SCALE) {
       printf("\nBy what factor should your image be scaled by? (Max: 9999)\n");
-      printf("Width : 32 * %zu = %zu\n", file_info->image_scale,
+      printf("Width  : %d * %zu = %zu\n", COL_COUNT, file_info->image_scale,
              COL_COUNT * file_info->image_scale);
-      printf("Width : 32 * %zu = %zu\n", file_info->image_scale,
+      printf("Height : %d * %zu = %zu\n", ROW_COUNT, file_info->image_scale,
              ROW_COUNT * file_info->image_scale);
       printf("> %s", image_scale_str);
     }
@@ -344,6 +346,7 @@ process_export_state_end:
   free(file_info);
 }
 
+// TODO: Make an increment_wrap function or just inline this function.
 int decrement_wrap(const int val, const int max_val) {
   return val == 0 ? max_val : val - 1;
 }
